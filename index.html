@@ -274,7 +274,7 @@
 </div>
 
 <script>
-  // URL จาก Google Apps Script Web App
+  // URL จาก Google Apps Script Web App ของคุณ
   const API_URL = "https://script.google.com/macros/s/AKfycbxIzNu83fqUywa_gNealfcVQaBJS4JfbsiIXq1w5Rw-0lBPlcJjPRLEyJhjric71V3K/exec";
 
   let products = [];
@@ -339,3 +339,61 @@
       totalsByCurrency[p.currency] = (totalsByCurrency[p.currency] || 0) + lineTotal;
 
       // Badge สถานะสต็อก
+      let stockClass = "stock-ok";
+      let stockText = `คงเหลือ ${p.stock}`;
+      if (p.stock <= 0) {
+        stockClass = "stock-empty";
+        stockText = "สินค้าหมด";
+      } else if (p.stock <= 3) {
+        stockClass = "stock-low";
+        stockText = `เหลือเพียง ${p.stock}`;
+      }
+
+      const card = document.createElement("div");
+      card.className = "product-card";
+      card.innerHTML = `
+        <div class="product-main">
+          <img src="${p.img}" class="product-img" onerror="this.src='https://via.placeholder.com/68?text=No+Img'">
+          <div class="product-info">
+            <h3 class="product-name" title="${p.name}">${p.name}</h3>
+            <div class="product-meta">
+              <span class="price-tag">${p.price.toLocaleString()} ${p.currency}</span>
+              <span class="badge-stock ${stockClass}">${stockText}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <div class="sales-summary-sub">
+            <span class="sold-label">ขายแล้ว: ${p.sold} ชิ้น</span>
+            <span class="total-amt">${lineTotal.toLocaleString()} ${p.currency}</span>
+          </div>
+
+          <div class="counter-control">
+            <button class="btn-qty btn-dec" onclick="changeSale(${p.id}, -1)">−</button>
+            <span class="sold-val-badge">${p.sold}</span>
+            <button class="btn-qty btn-inc" onclick="changeSale(${p.id}, 1)">+</button>
+          </div>
+        </div>
+      `;
+      listEl.appendChild(card);
+    });
+
+    // Render สรุปยอดขายรวมแยกตามสกุลเงิน
+    summaryEl.innerHTML = Object.entries(totalsByCurrency).map(([curr, total]) => `
+      <div class="summary-chip">
+        <div class="label">ยอดรวม (${curr})</div>
+        <div class="val">${total.toLocaleString()} ${curr}</div>
+      </div>
+    `).join("");
+  }
+
+  // เรียกโหลดข้อมูลครั้งแรกเมื่อเปิดหน้า
+  fetchProducts();
+
+  // ซิงก์อัตโนมัติทุกๆ 30 วินาที
+  setInterval(fetchProducts, 30000);
+</script>
+
+</body>
+</html>
