@@ -296,13 +296,21 @@
     const item = products.find(p => p.id === id);
     if (!item) return;
 
+    // ตรวจสอบกรณีสต็อกหมดเมื่อกดเพิ่ม (+)
     if (delta > 0 && item.stock <= 0) {
       alert("สินค้าหมดสต็อก!");
       return;
     }
+    // ตรวจสอบกรณีขายเป็น 0 อยู่แล้ว ไม่สามารถลดได้
     if (delta < 0 && item.sold <= 0) return;
 
-    // Optimistic UI Update
+    // --- เพิ่มระบบ Confirm Dialog ตอนกดลดจำนวนขาย (-) ---
+    if (delta < 0) {
+      const isConfirmed = confirm(`ต้องการลดยอดขายสินค้า "${item.name}" ลง 1 ชิ้น ใช่หรือไม่?`);
+      if (!isConfirmed) return; // หากกดยกเลิก (Cancel) จะไม่ทำรายการต่อ
+    }
+
+    // Optimistic UI Update (ปรับยอดบนหน้าจอก่อน)
     item.sold += delta;
     item.stock -= delta;
     render();
