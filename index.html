@@ -132,6 +132,7 @@
       align-items: center;
     }
 
+    /* รูปสินค้า: ปรับ cursor เป็นรูปแว่นขยาย/คลิกได้ */
     .product-img {
       width: 68px;
       height: 68px;
@@ -139,6 +140,13 @@
       object-fit: cover;
       background: #e2e8f0;
       flex-shrink: 0;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .product-img:active {
+      transform: scale(0.94);
+      opacity: 0.85;
     }
 
     .product-info {
@@ -204,7 +212,7 @@
       color: var(--text-main);
     }
 
-    /* Counter Controls - Touch Friendly */
+    /* Counter Controls */
     .counter-control {
       display: flex;
       align-items: center;
@@ -246,6 +254,82 @@
       color: var(--text-muted);
       font-size: 0.9rem;
     }
+
+    /* --- Image Lightbox Modal Styles --- */
+    .image-modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    .image-modal.active {
+      display: flex;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .modal-content-wrapper {
+      max-width: 90%;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .modal-img {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      object-fit: contain;
+      background: #ffffff;
+    }
+
+    .modal-caption {
+      color: #f8fafc;
+      margin-top: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+
+    .btn-close-modal {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: rgba(255, 255, 255, 0.25);
+      border: none;
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-close-modal:active {
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
   </style>
 </head>
 <body>
@@ -273,8 +357,16 @@
   </div>
 </div>
 
+<!-- Modal สำหรับแสดงรูปขยายใหญ่ -->
+<div id="imageModal" class="image-modal" onclick="closeImageModal(event)">
+  <button class="btn-close-modal" onclick="closeImageModalDirect()">&times;</button>
+  <div class="modal-content-wrapper" onclick="event.stopPropagation()">
+    <img id="modalImg" class="modal-img" src="" alt="ขยายรูปสินค้า">
+    <div id="modalCaption" class="modal-caption"></div>
+  </div>
+</div>
+
 <script>
-  // URL จาก Google Apps Script Web App ของคุณ
   const API_URL = "https://script.google.com/macros/s/AKfycbxIzNu83fqUywa_gNealfcVQaBJS4JfbsiIXq1w5Rw-0lBPlcJjPRLEyJhjric71V3K/exec";
 
   let products = [];
@@ -296,21 +388,19 @@
     const item = products.find(p => p.id === id);
     if (!item) return;
 
-    // ตรวจสอบกรณีสต็อกหมดเมื่อกดเพิ่ม (+)
     if (delta > 0 && item.stock <= 0) {
       alert("สินค้าหมดสต็อก!");
       return;
     }
-    // ตรวจสอบกรณีขายเป็น 0 อยู่แล้ว ไม่สามารถลดได้
     if (delta < 0 && item.sold <= 0) return;
 
-    // --- เพิ่มระบบ Confirm Dialog ตอนกดลดจำนวนขาย (-) ---
+    // ยืนยันก่อนลดยอดขาย
     if (delta < 0) {
       const isConfirmed = confirm(`ต้องการลดยอดขายสินค้า "${item.name}" ลง 1 ชิ้น ใช่หรือไม่?`);
-      if (!isConfirmed) return; // หากกดยกเลิก (Cancel) จะไม่ทำรายการต่อ
+      if (!isConfirmed) return;
     }
 
-    // Optimistic UI Update (ปรับยอดบนหน้าจอก่อน)
+    // Optimistic UI Update
     item.sold += delta;
     item.stock -= delta;
     render();
@@ -335,6 +425,28 @@
     }
   }
 
+  /* ฟังก์ชันเปิด-ปิดรูปภาพขยายใหญ่ (Modal) */
+  function openImageModal(imgSrc, title) {
+    const modal = document.getElementById("imageModal");
+    const modalImg = document.getElementById("modalImg");
+    const modalCaption = document.getElementById("modalCaption");
+
+    modalImg.src = imgSrc;
+    modalCaption.innerText = title;
+    modal.classList.add("active");
+  }
+
+  function closeImageModal(e) {
+    // ปิดเมื่อแตะพื้นที่ว่างด้านนอกภาพ
+    const modal = document.getElementById("imageModal");
+    modal.classList.remove("active");
+  }
+
+  function closeImageModalDirect() {
+    const modal = document.getElementById("imageModal");
+    modal.classList.remove("active");
+  }
+
   function render() {
     const listEl = document.getElementById("product-list");
     const summaryEl = document.getElementById("summary-section");
@@ -346,7 +458,6 @@
       const lineTotal = p.sold * p.price;
       totalsByCurrency[p.currency] = (totalsByCurrency[p.currency] || 0) + lineTotal;
 
-      // Badge สถานะสต็อก
       let stockClass = "stock-ok";
       let stockText = `คงเหลือ ${p.stock}`;
       if (p.stock <= 0) {
@@ -357,11 +468,20 @@
         stockText = `เหลือเพียง ${p.stock}`;
       }
 
+      // เตรียม escape string สำหรับส่งเข้าฟังก์ชัน openImageModal
+      const escapedName = (p.name || "").replace(/'/g, "\\'");
+      const imgSrc = p.img || "https://via.placeholder.com/68?text=No+Img";
+
       const card = document.createElement("div");
       card.className = "product-card";
       card.innerHTML = `
         <div class="product-main">
-          <img src="${p.img}" class="product-img" onerror="this.src='https://via.placeholder.com/68?text=No+Img'">
+          <img src="${imgSrc}" 
+               class="product-img" 
+               alt="${escapedName}"
+               title="แตะเพื่อดูรูปใหญ่"
+               onclick="openImageModal('${imgSrc}', '${escapedName}')"
+               onerror="this.src='https://via.placeholder.com/68?text=No+Img'">
           <div class="product-info">
             <h3 class="product-name" title="${p.name}">${p.name}</h3>
             <div class="product-meta">
@@ -387,7 +507,6 @@
       listEl.appendChild(card);
     });
 
-    // Render สรุปยอดขายรวมแยกตามสกุลเงิน
     summaryEl.innerHTML = Object.entries(totalsByCurrency).map(([curr, total]) => `
       <div class="summary-chip">
         <div class="label">ยอดรวม (${curr})</div>
@@ -396,10 +515,7 @@
     `).join("");
   }
 
-  // เรียกโหลดข้อมูลครั้งแรกเมื่อเปิดหน้า
   fetchProducts();
-
-  // ซิงก์อัตโนมัติทุกๆ 30 วินาที
   setInterval(fetchProducts, 30000);
 </script>
 
